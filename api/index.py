@@ -123,17 +123,22 @@ def get_home_data():
 @app.get("/api/playlist/{playlist_id}")
 def get_playlist_details(playlist_id: str):
     try:
-       
-        playlist = yt.get_playlist(playlist_id, limit=100)
-        
-        tracks = playlist.get('tracks', [])
+        if playlist_id.startswith("RD") or playlist_id.startswith("VL"):
+            print(f"Fetching Watch Playlist: {playlist_id}")
+            data = yt.get_watch_playlist(playlistId=playlist_id, limit=50)
+            tracks = data.get('tracks', [])
+            title = "Top Charts" # Watch playlists don't always return a title
+        else:
+            print(f"Fetching Standard Playlist: {playlist_id}")
+            data = yt.get_playlist(playlist_id, limit=100)
+            tracks = data.get('tracks', [])
+            title = data.get('title', 'Playlist')
+
         mapped_tracks = []
-        
         for item in tracks:
             video_id = item.get('videoId')
-            if not video_id:
-                continue
-
+            if not video_id: continue
+                
             thumbnails = item.get('thumbnails', [])
             image_url = thumbnails[-1]['url'] if thumbnails else ""
             if "=" in image_url:
@@ -142,29 +147,25 @@ def get_playlist_details(playlist_id: str):
             mapped_tracks.append({
                 "id": video_id,
                 "title": item.get('title'),
-
                 "subtitle": item.get('artists', [{}])[0].get('name', 'Unknown Artist'),
                 "type": "song",
                 "image": image_url,
-                "duration": item.get('duration', '0:00'),
-                "album": item.get('album', {}).get('name', playlist.get('title', 'Playlist'))
+                "duration": item.get('duration', '0:00')
             })
             
         return {
             "success": True,
             "data": {
-                "title": playlist.get('title'),
-                "description": playlist.get('description', ''),
-                "image": playlist.get('thumbnails', [{}])[-1].get('url', ''),
-                "trackCount": playlist.get('trackCount', 0),
+                "title": title,
                 "tracks": mapped_tracks
             }
         }
         
     except Exception as e:
+        print(f"Error: {e}")
         return {
             "success": False,
-            "error": str(e)
+            "error": "This playlist type is currently restricted or the ID is invalid."
         }
         
 if __name__ == "__main__":
