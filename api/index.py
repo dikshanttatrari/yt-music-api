@@ -249,6 +249,45 @@ def get_playlist_details(playlist_id: str):
             "success": False,
             "error": "This playlist type is currently restricted or the ID is invalid."
         }
+
+@app.get("/api/artist/{artist_id}")
+def get_artist_songs(artist_id: str):
+    try:
+        artist_data = yt.get_artist(artist_id)
+        songs = artist_data.get("songs", {}).get("results", [])
+        mapped_results = []
+
+        for item in songs:
+            video_id = item.get('videoId')
+            if not video_id: continue
+            
+            thumbnails = item.get('thumbnails', [])
+            image_url = thumbnails[-1]['url'] if thumbnails else ""
+            if "=" in image_url: 
+                image_url = image_url.split('=')[0] + "=w500-h500-l90-rj"
+
+            mapped_results.append({
+                "id": video_id,
+                "title": item.get('title', 'Unknown Title'),
+                "subtitle": item.get('artists', [{}])[0].get('name', artist_data.get('name', 'Unknown Artist')),
+                "type": "song",
+                "image": image_url,
+                "duration": item.get('duration', '0:00')
+            })
+
+        return {
+            "success": True,
+            "artistName": artist_data.get('name', 'Unknown Artist'),
+            "artistImage": artist_data.get('thumbnails', [{}])[-1].get('url', ''),
+            "data": mapped_results
+        }
+
+    except Exception as e:
+        print(f"Artist Fetch Error: {e}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
         
         
 if __name__ == "__main__":
