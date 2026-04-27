@@ -19,10 +19,30 @@ app.add_middleware(
 @app.get("/api/search")
 def search_all(q: str = Query(...)):
     try:
+        artists_results = yt.search(q, filter="artists", limit=5)
         songs_results = yt.search(q, filter="songs", limit=20)
-        playlists_results = yt.search(q, filter="playlists", limit=20)
+        playlists_results = yt.search(q, filter="playlists", limit=10)
 
         mapped_results = []
+
+        for item in artists_results:
+
+            artist_id = item.get('browseId') 
+            if not artist_id: continue
+            
+            thumbnails = item.get('thumbnails', [])
+            image_url = thumbnails[-1]['url'] if thumbnails else ""
+            if "=" in image_url: 
+                image_url = image_url.split('=')[0] + "=w500-h500-l90-rj"
+
+            mapped_results.append({
+                "id": artist_id,
+                "title": item.get('artist', item.get('title', 'Unknown Artist')),
+                "subtitle": "Artist", 
+                "type": "artist",
+                "image": image_url
+            })
+
         for item in songs_results:
             video_id = item.get('videoId')
             if not video_id: continue
@@ -43,7 +63,6 @@ def search_all(q: str = Query(...)):
 
 
         for item in playlists_results:
-    
             playlist_id = item.get('browseId') 
             if not playlist_id: continue
             
@@ -55,11 +74,9 @@ def search_all(q: str = Query(...)):
             mapped_results.append({
                 "id": playlist_id,
                 "title": item.get('title', 'Unknown Playlist'),
-
                 "subtitle": f"Playlist • {item.get('author', 'YouTube Music')}", 
                 "type": "playlist",
                 "image": image_url,
-
                 "trackCount": item.get('itemCount', '') 
             })
 
@@ -74,7 +91,7 @@ def search_all(q: str = Query(...)):
             "success": False,
             "error": str(e)
         }
-
+        
 @app.get("/api/search/songs")
 def search_songs(q: str = Query(...)):
     results = yt.search(q, filter="songs")
