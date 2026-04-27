@@ -1,9 +1,18 @@
+import os
+import json
 from fastapi import FastAPI, Query
 from ytmusicapi import YTMusic
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
-yt = YTMusic(location="IN", language="en")
+headers_env = os.environ.get("YTM_HEADERS")
+if headers_env:
+    print("Using authenticated personal headers!")
+    headers_dict = json.loads(headers_env)
+    yt = YTMusic(auth=headers_dict)
+else:
+    print("No headers found. Falling back to default India location.")
+    yt = YTMusic(location="IN", language="en")
 
 app.add_middleware(
     CORSMiddleware,
