@@ -273,7 +273,8 @@ def get_artist_songs(artist_id: str):
          
                 all_singers = artist_data.get('name', 'Unknown Artist')
 
-            plays_count = item.get('views', item.get('plays', '0'))
+            plays_raw = item.get('views') or item.get('plays') or item.get('playCount') or ""
+            plays_count = str(plays_raw)
 
             mapped_results.append({
                 "id": video_id,
