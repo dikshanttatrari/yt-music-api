@@ -62,70 +62,60 @@ def search_songs(q: str = Query(...)):
 @app.get("/api/home")
 def get_home():
     try:
-        # Instead of get_home(), we explicitly request the Indian Charts
-        # This completely ignores Vercel's US IP address
-        charts = yt.get_charts(country="IN")
+        # 1. Try to fetch the official "Top 50 India" Playlist directly
+        # This ID is public and works globally.
+        playlist_id = "RDCLAK5uy_n9FByws7cwzST9m6_S_On_9zR_vA776Sg" 
         
+        try:
+            playlist_data = yt.get_playlist(playlist_id, limit=20)
+            items = playlist_data.get('tracks', [])
+        except:
+            items = []
+
+        # 2. If the playlist failed (or is empty), fallback to a high-quality search
+        if not items:
+            print("Playlist fetch failed, falling back to search...")
+            search_results = yt.search("Top Indian Songs 2024", filter="songs")
+            items = search_results[:20]
+
         formatted_modules = []
-        
-        # --- SHELF 1: Trending in India ---
-        if 'trending' in charts and charts['trending'].get('items'):
-            mapped_trending = []
-            for item in charts['trending']['items'][:10]: # Get top 10
-                thumbnails = item.get('thumbnails', [])
-                image_url = thumbnails[-1]['url'] if thumbnails else "https://via.placeholder.com/500"
-                if "=" in image_url: image_url = image_url.split('=')[0] + "=w500-h500-l90-rj"
-                
-                mapped_trending.append({
-                    "id": item.get('videoId'),
-                    "title": item.get('title'),
-                    "subtitle": item.get('artists', [{}])[0].get('name', 'Unknown Artist'),
-                    "type": "song",
-                    "image": image_url
-                })
-            formatted_modules.append({"title": "Trending in India", "items": mapped_trending})
+        mapped_items = []
 
-        # --- SHELF 2: Top Songs India ---
-        if 'songs' in charts and charts['songs'].get('items'):
-            mapped_songs = []
-            for item in charts['songs']['items'][:10]: 
-                thumbnails = item.get('thumbnails', [])
-                image_url = thumbnails[-1]['url'] if thumbnails else "https://via.placeholder.com/500"
-                if "=" in image_url: image_url = image_url.split('=')[0] + "=w500-h500-l90-rj"
+        for item in items:
+            # Handle different key names between Playlist tracks and Search results
+            item_id = item.get('videoId')
+            if not item_id: continue
 
-                mapped_songs.append({
-                    "id": item.get('videoId'),
-                    "title": item.get('title'),
-                    "subtitle": item.get('artists', [{}])[0].get('name', ''),
-                    "type": "song",
-                    "image": image_url
-                })
-            formatted_modules.append({"title": "Top Songs India", "items": mapped_songs})
+            thumbnails = item.get('thumbnails', [])
+            image_url = thumbnails[-1]['url'] if thumbnails else "https://via.placeholder.com/500"
+            if "=" in image_url: image_url = image_url.split('=')[0] + "=w500-h500-l90-rj"
 
-        # --- SHELF 3: Top Music Videos India ---
-        if 'videos' in charts and charts['videos'].get('items'):
-            mapped_videos = []
-            for item in charts['videos']['items'][:10]:
-                thumbnails = item.get('thumbnails', [])
-                image_url = thumbnails[-1]['url'] if thumbnails else "https://via.placeholder.com/500"
-                if "=" in image_url: image_url = image_url.split('=')[0] + "=w500-h500-l90-rj"
+            # Get artist name safely
+            artists = item.get('artists', [])
+            artist_name = artists[0].get('name', 'Unknown Artist') if artists else 'Unknown'
 
-                mapped_videos.append({
-                    "id": item.get('videoId'),
-                    "title": item.get('title'),
-                    "subtitle": item.get('artists', [{}])[0].get('name', ''),
-                    "type": "song",
-                    "image": image_url
-                })
-            formatted_modules.append({"title": "Top Music Videos", "items": mapped_videos})
+            mapped_items.append({
+                "id": item_id,
+                "title": item.get('title'),
+                "subtitle": artist_name,
+                "type": "song",
+                "image": image_url
+            })
+
+        # Put everything into a "Trending in India" category
+        if mapped_items:
+            formatted_modules.append({
+                "title": "Trending in India",
+                "items": mapped_items
+            })
 
         return {
             "success": True,
             "data": formatted_modules
         }
-        
+
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return {"success": False, "error": str(e), "data": []}
         
 if __name__ == "__main__":
     import uvicorn
