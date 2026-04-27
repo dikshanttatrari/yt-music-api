@@ -15,6 +15,66 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.get("/search")
+def search_all(q: str = Query(...)):
+    try:
+        songs_results = yt.search(q, filter="songs", limit=20)
+        playlists_results = yt.search(q, filter="playlists", limit=20)
+
+        mapped_results = []
+        for item in songs_results:
+            video_id = item.get('videoId')
+            if not video_id: continue
+            
+            thumbnails = item.get('thumbnails', [])
+            image_url = thumbnails[-1]['url'] if thumbnails else ""
+            if "=" in image_url: 
+                image_url = image_url.split('=')[0] + "=w500-h500-l90-rj"
+
+            mapped_results.append({
+                "id": video_id,
+                "title": item.get('title', 'Unknown Title'),
+                "subtitle": item.get('artists', [{}])[0].get('name', 'Unknown Artist'),
+                "type": "song",
+                "image": image_url,
+                "duration": item.get('duration', '0:00')
+            })
+
+
+        for item in playlists_results:
+    
+            playlist_id = item.get('browseId') 
+            if not playlist_id: continue
+            
+            thumbnails = item.get('thumbnails', [])
+            image_url = thumbnails[-1]['url'] if thumbnails else ""
+            if "=" in image_url: 
+                image_url = image_url.split('=')[0] + "=w500-h500-l90-rj"
+
+            mapped_results.append({
+                "id": playlist_id,
+                "title": item.get('title', 'Unknown Playlist'),
+
+                "subtitle": f"Playlist • {item.get('author', 'YouTube Music')}", 
+                "type": "playlist",
+                "image": image_url,
+
+                "trackCount": item.get('itemCount', '') 
+            })
+
+        return {
+            "success": True,
+            "data": mapped_results
+        }
+
+    except Exception as e:
+        print(f"Search Error: {e}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
 @app.get("/api/search/songs")
 def search_songs(q: str = Query(...)):
     results = yt.search(q, filter="songs")
@@ -172,6 +232,7 @@ def get_playlist_details(playlist_id: str):
             "success": False,
             "error": "This playlist type is currently restricted or the ID is invalid."
         }
+        
         
 if __name__ == "__main__":
     import uvicorn
