@@ -19,7 +19,7 @@ app.add_middleware(
 @app.get("/api/search")
 def search_all(q: str = Query(...)):
     try:
-        artists_results = yt.search(q, filter="artists", limit=5)
+        artists_results = yt.search(q, filter="artists", limit=1)
         songs_results = yt.search(q, filter="songs", limit=20)
         playlists_results = yt.search(q, filter="playlists", limit=10)
 
