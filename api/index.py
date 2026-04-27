@@ -15,7 +15,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.get("/api/search/songs")
+@app.get("/search/songs")
 def search_songs(q: str = Query(...)):
     results = yt.search(q, filter="songs")
     
@@ -59,7 +59,7 @@ def search_songs(q: str = Query(...)):
             "results": mapped_results
         }
     }
-@app.get("/api/home")
+@app.get("/home")
 def get_home_data():
     try:
 
@@ -120,7 +120,7 @@ def get_home_data():
             "details": str(e)
         }
         
-@app.get("/api/playlist/{playlist_id}")
+@app.get("/playlist/{playlist_id}")
 def get_playlist_details(playlist_id: str):
     try:
        
