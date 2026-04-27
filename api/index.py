@@ -265,15 +265,24 @@ def get_artist_songs(artist_id: str):
             image_url = thumbnails[-1]['url'] if thumbnails else ""
             if "=" in image_url: 
                 image_url = image_url.split('=')[0] + "=w500-h500-l90-rj"
+            artists_list = item.get('artists', [])
+            if artists_list:
+
+                all_singers = ", ".join([a.get('name') for a in artists_list if a.get('name')])
+            else:
+         
+                all_singers = artist_data.get('name', 'Unknown Artist')
+
+            plays_count = item.get('views', item.get('plays', '0'))
 
             mapped_results.append({
                 "id": video_id,
                 "title": item.get('title', 'Unknown Title'),
-                "subtitle": item.get('artists', [{}])[0].get('name', artist_data.get('name', 'Unknown Artist')),
+                "subtitle": all_singers,
                 "type": "song",
                 "image": image_url,
                 "duration": item.get('duration', '0:00'),
-                "plays": item.get('plays', 0)
+                "plays": plays_count 
             })
 
         return {
