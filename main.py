@@ -3,7 +3,7 @@ from ytmusicapi import YTMusic
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
-yt = YTMusic()
+yt = YTMusic(location="IN", language="en")
 
 app.add_middleware(
     CORSMiddleware,
