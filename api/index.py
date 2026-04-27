@@ -272,7 +272,8 @@ def get_artist_songs(artist_id: str):
                 "subtitle": item.get('artists', [{}])[0].get('name', artist_data.get('name', 'Unknown Artist')),
                 "type": "song",
                 "image": image_url,
-                "duration": item.get('duration', '0:00')
+                "duration": item.get('duration', '0:00'),
+                "plays": item.get('plays', 0)
             })
 
         return {
