@@ -60,62 +60,69 @@ def search_songs(q: str = Query(...)):
         }
     }
 @app.get("/api/home")
-def get_home():
+def get_home_data():
     try:
-        # 1. Try to fetch the official "Top 50 India" Playlist directly
-        # This ID is public and works globally.
-        playlist_id = "RDCLAK5uy_n9FByws7cwzST9m6_S_On_9zR_vA776Sg" 
+        # Limit to 5 "Shelves" (rows) to keep the API lightning fast
+        home_data = yt.get_home(limit=5)
         
-        try:
-            playlist_data = yt.get_playlist(playlist_id, limit=20)
-            items = playlist_data.get('tracks', [])
-        except:
-            items = []
-
-        # 2. If the playlist failed (or is empty), fallback to a high-quality search
-        if not items:
-            print("Playlist fetch failed, falling back to search...")
-            search_results = yt.search("Top Indian Songs 2024", filter="songs")
-            items = search_results[:20]
-
         formatted_modules = []
-        mapped_items = []
+        
+        for shelf in home_data:
+            title = shelf.get('title', 'Discover')
+            contents = shelf.get('contents', [])
+            
+            mapped_contents = []
+            for item in contents:
+                # YT Music uses different ID keys depending on what the item is
+                item_id = item.get('videoId') or item.get('playlistId') or item.get('browseId')
+                
+                # If there's no ID, skip it (sometimes YT sends weird promotional banners)
+                if not item_id:
+                    continue
+                    
+                # Figure out what kind of media this is so your React Native app knows how to handle clicks
+                if item.get('videoId'):
+                    item_type = "song"
+                elif item.get('playlistId'):
+                    item_type = "playlist"
+                else:
+                    item_type = "album" # 'browseId' usually belongs to albums or artists
+                    
+                # Grab the highest quality thumbnail available
+                thumbnails = item.get('thumbnails', [])
+                image_url = thumbnails[-1]['url'] if thumbnails else "https://via.placeholder.com/500"
+                
+                # Clean up the YouTube image URL to be a high-res perfect square
+                if "=" in image_url:
+                    image_url = image_url.split('=')[0] + "=w500-h500-l90-rj"
 
-        for item in items:
-            # Handle different key names between Playlist tracks and Search results
-            item_id = item.get('videoId')
-            if not item_id: continue
-
-            thumbnails = item.get('thumbnails', [])
-            image_url = thumbnails[-1]['url'] if thumbnails else "https://via.placeholder.com/500"
-            if "=" in image_url: image_url = image_url.split('=')[0] + "=w500-h500-l90-rj"
-
-            # Get artist name safely
-            artists = item.get('artists', [])
-            artist_name = artists[0].get('name', 'Unknown Artist') if artists else 'Unknown'
-
-            mapped_items.append({
-                "id": item_id,
-                "title": item.get('title'),
-                "subtitle": artist_name,
-                "type": "song",
-                "image": image_url
-            })
-
-        # Put everything into a "Trending in India" category
-        if mapped_items:
-            formatted_modules.append({
-                "title": "Trending in India",
-                "items": mapped_items
-            })
-
+                mapped_contents.append({
+                    "id": item_id,
+                    "title": item.get('title', 'Unknown Title'),
+                    # Subtitle usually contains the Artist name or "Playlist • YouTube Music"
+                    "subtitle": item.get('subtitle', ''), 
+                    "type": item_type,
+                    "image": image_url
+                })
+            
+            # Only send the row to the app if it actually has items inside it
+            if mapped_contents:
+                formatted_modules.append({
+                    "title": title,
+                    "items": mapped_contents
+                })
+                
         return {
             "success": True,
             "data": formatted_modules
         }
-
+        
     except Exception as e:
-        return {"success": False, "error": str(e), "data": []}
+        return {
+            "success": False, 
+            "error": "Failed to fetch home data", 
+            "details": str(e)
+        }
         
 if __name__ == "__main__":
     import uvicorn
