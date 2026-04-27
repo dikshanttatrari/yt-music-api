@@ -119,7 +119,8 @@ def get_home_data():
             "error": "Failed to fetch home data", 
             "details": str(e)
         }
-        @app.get("/api/playlist/{playlist_id}")
+        
+@app.get("/api/playlist/{playlist_id}")
 def get_playlist_details(playlist_id: str):
     try:
        
