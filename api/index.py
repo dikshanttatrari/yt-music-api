@@ -138,19 +138,24 @@ def get_playlist_details(playlist_id: str):
         for item in tracks:
             video_id = item.get('videoId')
             if not video_id: continue
-                
-            thumbnails = item.get('thumbnails', [])
-            image_url = thumbnails[-1]['url'] if thumbnails else ""
-            if "=" in image_url:
-                image_url = image_url.split('=')[0] + "=w500-h500-l90-rj"
+            thumbnails = item.get('thumbnails') or item.get('thumbnail') or []
+            
+            image_url = ""
+            if thumbnails:
+                image_url = thumbnails[-1].get('url', '')
+                if "=" in image_url:
+                    image_url = image_url.split('=')[0] + "=w500-h500-l90-rj"
+                elif "googleusercontent" not in image_url:
+                    image_url = image_url.replace("default.jpg", "hqdefault.jpg")
+            duration = item.get('duration') or item.get('length') or item.get('duration_seconds') or "0:00"
 
             mapped_tracks.append({
                 "id": video_id,
-                "title": item.get('title'),
+                "title": item.get('title', 'Unknown'),
                 "subtitle": item.get('artists', [{}])[0].get('name', 'Unknown Artist'),
                 "type": "song",
                 "image": image_url,
-                "duration": item.get('duration', '0:00')
+                "duration": str(duration)
             })
             
         return {
