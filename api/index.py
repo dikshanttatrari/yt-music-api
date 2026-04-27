@@ -62,7 +62,7 @@ def search_songs(q: str = Query(...)):
 @app.get("/api/home")
 def get_home_data():
     try:
-        # Limit to 5 "Shelves" (rows) to keep the API lightning fast
+
         home_data = yt.get_home(limit=5)
         
         formatted_modules = []
@@ -73,39 +73,35 @@ def get_home_data():
             
             mapped_contents = []
             for item in contents:
-                # YT Music uses different ID keys depending on what the item is
+
                 item_id = item.get('videoId') or item.get('playlistId') or item.get('browseId')
-                
-                # If there's no ID, skip it (sometimes YT sends weird promotional banners)
+
                 if not item_id:
                     continue
                     
-                # Figure out what kind of media this is so your React Native app knows how to handle clicks
+
                 if item.get('videoId'):
                     item_type = "song"
                 elif item.get('playlistId'):
                     item_type = "playlist"
                 else:
-                    item_type = "album" # 'browseId' usually belongs to albums or artists
-                    
-                # Grab the highest quality thumbnail available
+                    item_type = "album" 
+
                 thumbnails = item.get('thumbnails', [])
                 image_url = thumbnails[-1]['url'] if thumbnails else "https://via.placeholder.com/500"
-                
-                # Clean up the YouTube image URL to be a high-res perfect square
+
                 if "=" in image_url:
                     image_url = image_url.split('=')[0] + "=w500-h500-l90-rj"
 
                 mapped_contents.append({
                     "id": item_id,
                     "title": item.get('title', 'Unknown Title'),
-                    # Subtitle usually contains the Artist name or "Playlist • YouTube Music"
                     "subtitle": item.get('subtitle', ''), 
                     "type": item_type,
                     "image": image_url
                 })
             
-            # Only send the row to the app if it actually has items inside it
+     
             if mapped_contents:
                 formatted_modules.append({
                     "title": title,
@@ -122,6 +118,52 @@ def get_home_data():
             "success": False, 
             "error": "Failed to fetch home data", 
             "details": str(e)
+        }
+        @app.get("/api/playlist/{playlist_id}")
+def get_playlist_details(playlist_id: str):
+    try:
+       
+        playlist = yt.get_playlist(playlist_id, limit=100)
+        
+        tracks = playlist.get('tracks', [])
+        mapped_tracks = []
+        
+        for item in tracks:
+            video_id = item.get('videoId')
+            if not video_id:
+                continue
+
+            thumbnails = item.get('thumbnails', [])
+            image_url = thumbnails[-1]['url'] if thumbnails else ""
+            if "=" in image_url:
+                image_url = image_url.split('=')[0] + "=w500-h500-l90-rj"
+
+            mapped_tracks.append({
+                "id": video_id,
+                "title": item.get('title'),
+
+                "subtitle": item.get('artists', [{}])[0].get('name', 'Unknown Artist'),
+                "type": "song",
+                "image": image_url,
+                "duration": item.get('duration', '0:00'),
+                "album": item.get('album', {}).get('name', playlist.get('title', 'Playlist'))
+            })
+            
+        return {
+            "success": True,
+            "data": {
+                "title": playlist.get('title'),
+                "description": playlist.get('description', ''),
+                "image": playlist.get('thumbnails', [{}])[-1].get('url', ''),
+                "trackCount": playlist.get('trackCount', 0),
+                "tracks": mapped_tracks
+            }
+        }
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
         }
         
 if __name__ == "__main__":
