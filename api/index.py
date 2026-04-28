@@ -3,6 +3,7 @@ import json
 from fastapi import FastAPI, Query
 from ytmusicapi import YTMusic
 from fastapi.middleware.cors import CORSMiddleware
+import yt_dlp
 
 app = FastAPI()
 print("Initializing YTMusic for India Region...")
@@ -295,6 +296,35 @@ def get_artist_songs(artist_id: str):
 
     except Exception as e:
         print(f"Artist Fetch Error: {e}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+@app.get("/api/stream/{video_id}")
+def get_audio_stream(video_id: str):
+
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'quiet': True,
+        'no_warnings': True,
+        'skip_download': True 
+    }
+    
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+
+            info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
+            
+            stream_url = info.get('url') 
+            
+            return {
+                "success": True,
+                "streamUrl": stream_url
+            }
+            
+    except Exception as e:
+        print(f"Extraction Error: {e}")
         return {
             "success": False,
             "error": str(e)
