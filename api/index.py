@@ -303,7 +303,7 @@ def get_artist_songs(artist_id: str):
 
 @app.get("/api/stream/{video_id}")
 def get_audio_stream(video_id: str):
-
+  
     ydl_opts = {
         'format': 'bestaudio/best',
         'quiet': True,
@@ -313,9 +313,10 @@ def get_audio_stream(video_id: str):
     
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-
+           
             info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
             
+        
             stream_url = info.get('url') 
             
             return {
