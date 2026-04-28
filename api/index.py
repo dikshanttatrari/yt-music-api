@@ -308,15 +308,14 @@ def get_audio_stream(video_id: str):
         'format': 'bestaudio/best',
         'quiet': True,
         'no_warnings': True,
-        'skip_download': True 
+        'skip_download': True,
+
+        'extractor_args': {'youtube': ['client=android']} 
     }
     
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-           
             info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
-            
-        
             stream_url = info.get('url') 
             
             return {
