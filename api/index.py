@@ -303,33 +303,43 @@ def get_artist_songs(artist_id: str):
 
 @app.get("/api/stream/{video_id}")
 def get_audio_stream(video_id: str):
-  
     ydl_opts = {
-        'format': 'bestaudio/best',
+        'format': 'bestaudio[ext=m4a]/bestaudio/best',
         'quiet': True,
         'no_warnings': True,
         'skip_download': True,
-
-        'extractor_args': {'youtube': ['client=android']} 
+        'nocheckcertificate': True,
+        'extract_flat': True,
+        'allowed_extractors': ['youtube'],
+        'extractor_args': {'youtube': ['client=android', 'skip=dash,hls']} 
     }
     
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
-            stream_url = info.get('url') 
-            
+
+            if 'url' in info:
+                stream_url = info['url']
+            else:
+
+                return {"success": False, "error": "Could not extract direct stream URL"}
+
             return {
                 "success": True,
-                "streamUrl": stream_url
+                "streamUrl": stream_url,
+                "expiresAt": info.get('fragments', [{}])[0].get('duration')
             }
             
     except Exception as e:
-        print(f"Extraction Error: {e}")
-        return {
-            "success": False,
-            "error": str(e)
-        }
-        
+        return {"success": False, "error": str(e)}
+
+@app.get("/api/search/suggestions")
+def get_suggestions(q: str = Query(...)):
+    try:
+        suggestions = yt.get_search_suggestions(q)
+        return {"success": True, "data": suggestions}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
         
 if __name__ == "__main__":
     import uvicorn
