@@ -4,6 +4,7 @@ from fastapi import FastAPI, Query
 from ytmusicapi import YTMusic
 from fastapi.middleware.cors import CORSMiddleware
 import yt_dlp
+import tempfile
 
 app = FastAPI()
 print("Initializing YTMusic for India Region...")
@@ -303,6 +304,14 @@ def get_artist_songs(artist_id: str):
 
 @app.get("/api/stream/{video_id}")
 def get_audio_stream(video_id: str):
+    cookies_content = os.environ.get("YOUTUBE_COOKIES")
+    cookie_file_path = None
+    if cookies_content:
+        cookie_file_path = os.path.join(tempfile.gettempdir(), f"yt_cookies_{video_id}.txt")
+        with open(cookie_file_path, "w") as f:
+            f.write(cookies_content)
+
+
     ydl_opts = {
         'format': 'bestaudio[ext=m4a]/bestaudio/best',
         'quiet': True,
@@ -313,24 +322,37 @@ def get_audio_stream(video_id: str):
         'extractor_args': {'youtube': ['client=ios,tv,mweb']} 
     }
     
+
+    if cookie_file_path:
+        ydl_opts['cookiefile'] = cookie_file_path
+
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
-
+            
             if 'url' in info:
                 stream_url = info['url']
             else:
-
                 return {"success": False, "error": "Could not extract direct stream URL"}
+
+            if cookie_file_path and os.path.exists(cookie_file_path):
+                os.remove(cookie_file_path)
 
             return {
                 "success": True,
-                "streamUrl": stream_url,
-                "expiresAt": info.get('fragments', [{}])[0].get('duration')
+                "streamUrl": stream_url
             }
             
     except Exception as e:
-        return {"success": False, "error": str(e)}
+
+        if cookie_file_path and os.path.exists(cookie_file_path):
+            os.remove(cookie_file_path)
+            
+        print(f"Extraction Error: {e}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
 
 @app.get("/api/search/suggestions")
 def get_suggestions(q: str = Query(...)):
