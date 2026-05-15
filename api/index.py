@@ -304,45 +304,63 @@ def get_artist_songs(artist_id: str):
 
 @app.get("/api/stream/{video_id}")
 def get_audio_stream(video_id: str):
-    try:
-  
-        piped_api_url = f"https://pipedapi.kavin.rocks/streams/{video_id}"
-        
-
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-        
-        response = requests.get(piped_api_url, headers=headers, timeout=10)
-        
-        if response.status_code != 200:
-            return {"success": False, "error": "Proxy failed to fetch stream from YouTube"}
+    piped_instances = [
+        "https://pipedapi.kavin.rocks",
+        "https://pipedapi.in.projectsegfau.lt",
+        "https://piped-api.lunar.icu",
+        "https://api.piped.privacydev.net",
+        "https://pipedapi.smnz.de"
+    ]
+    
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+    
+    for instance in piped_instances:
+        try:
+            print(f"Trying proxy: {instance}")
+            piped_api_url = f"{instance}/streams/{video_id}"
             
-        data = response.json()
-
-        audio_streams = data.get("audioStreams", [])
-        if not audio_streams:
-            return {"success": False, "error": "No audio streams found for this video"}
-
-        m4a_streams = [s for s in audio_streams if s.get("format") == "M4A"]
-        
-        if m4a_streams:
-
-            best_stream = sorted(m4a_streams, key=lambda x: x.get("bitrate", 0), reverse=True)[0]
-            stream_url = best_stream["url"]
-        else:
-
-            stream_url = audio_streams[0]["url"]
+       
+            response = requests.get(piped_api_url, headers=headers, timeout=3)
             
-        return {
-            "success": True,
-            "streamUrl": stream_url
-        }
-        
-    except Exception as e:
-        print(f"Extraction Error: {e}")
-        return {
-            "success": False,
-            "error": str(e)
-        }
+       
+            if response.status_code != 200:
+                continue 
+                
+            data = response.json()
+            
+
+            if "error" in data:
+                continue
+                
+            audio_streams = data.get("audioStreams", [])
+            if not audio_streams:
+                continue
+
+            m4a_streams = [s for s in audio_streams if s.get("format") == "M4A"]
+            
+            if m4a_streams:
+                best_stream = sorted(m4a_streams, key=lambda x: x.get("bitrate", 0), reverse=True)[0]
+                stream_url = best_stream["url"]
+            else:
+                stream_url = audio_streams[0]["url"]
+                
+
+            return {
+                "success": True,
+                "streamUrl": stream_url,
+                "provider": instance 
+            }
+            
+        except Exception as e:
+
+            print(f"Failed to connect to {instance}: {e}")
+            continue
+            
+
+    return {
+        "success": False,
+        "error": "All proxy servers are currently overloaded or blocked by YouTube. Try again in a few minutes."
+    }
 
 @app.get("/api/search/suggestions")
 def get_suggestions(q: str = Query(...)):
