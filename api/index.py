@@ -310,8 +310,7 @@ def get_audio_stream(video_id: str):
         'skip_download': True,
         'nocheckcertificate': True,
         'extract_flat': True,
-        'allowed_extractors': ['youtube'],
-        'extractor_args': {'youtube': ['client=android', 'skip=dash,hls']} 
+        'extractor_args': {'youtube': ['client=ios,tv,mweb']} 
     }
     
     try:
