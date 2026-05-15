@@ -4,7 +4,7 @@ from fastapi import FastAPI, Query
 from ytmusicapi import YTMusic
 from fastapi.middleware.cors import CORSMiddleware
 import yt_dlp
-import tempfile
+import requests
 
 app = FastAPI()
 print("Initializing YTMusic for India Region...")
@@ -304,50 +304,40 @@ def get_artist_songs(artist_id: str):
 
 @app.get("/api/stream/{video_id}")
 def get_audio_stream(video_id: str):
-    cookies_content = os.environ.get("YOUTUBE_COOKIES")
-    cookie_file_path = None
-    if cookies_content:
-        cookie_file_path = os.path.join(tempfile.gettempdir(), f"yt_cookies_{video_id}.txt")
-        with open(cookie_file_path, "w") as f:
-            f.write(cookies_content)
-
-
-    ydl_opts = {
-        'format': 'bestaudio[ext=m4a]/bestaudio/best',
-        'quiet': True,
-        'no_warnings': True,
-        'skip_download': True,
-        'nocheckcertificate': True,
-        'extract_flat': True,
-        'extractor_args': {'youtube': ['client=ios,tv,mweb']} 
-    }
-    
-
-    if cookie_file_path:
-        ydl_opts['cookiefile'] = cookie_file_path
-
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
-            
-            if 'url' in info:
-                stream_url = info['url']
-            else:
-                return {"success": False, "error": "Could not extract direct stream URL"}
+  
+        piped_api_url = f"https://pipedapi.kavin.rocks/streams/{video_id}"
+        
 
-            if cookie_file_path and os.path.exists(cookie_file_path):
-                os.remove(cookie_file_path)
-
-            return {
-                "success": True,
-                "streamUrl": stream_url
-            }
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+        
+        response = requests.get(piped_api_url, headers=headers, timeout=10)
+        
+        if response.status_code != 200:
+            return {"success": False, "error": "Proxy failed to fetch stream from YouTube"}
             
+        data = response.json()
+
+        audio_streams = data.get("audioStreams", [])
+        if not audio_streams:
+            return {"success": False, "error": "No audio streams found for this video"}
+
+        m4a_streams = [s for s in audio_streams if s.get("format") == "M4A"]
+        
+        if m4a_streams:
+
+            best_stream = sorted(m4a_streams, key=lambda x: x.get("bitrate", 0), reverse=True)[0]
+            stream_url = best_stream["url"]
+        else:
+
+            stream_url = audio_streams[0]["url"]
+            
+        return {
+            "success": True,
+            "streamUrl": stream_url
+        }
+        
     except Exception as e:
-
-        if cookie_file_path and os.path.exists(cookie_file_path):
-            os.remove(cookie_file_path)
-            
         print(f"Extraction Error: {e}")
         return {
             "success": False,
